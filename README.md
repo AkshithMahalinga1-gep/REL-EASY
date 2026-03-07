@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" width="300" />
+  <img src="assets/REL-EASY.png" width="300" />
 </p>
 
 # REL-EASY — Making API Releases Easy
