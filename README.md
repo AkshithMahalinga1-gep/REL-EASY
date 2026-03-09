@@ -244,3 +244,4 @@ Reports are written to `reports/<env>/` and are never overwritten (each run crea
 - **Hotfix awareness** — `prod_build_tracker.py` skips PROD-deployed hotfix builds when looking for release candidates, so a bug fix never blocks the next sprint release from showing up
 - **Connection pooling** — a shared `requests.Session` with pooling prevents Windows ephemeral port exhaustion (`WinError 10048`) during large parallel scans
 - **Auto-retry** — all HTTP calls retry automatically on `429`/`5xx` responses with exponential backoff
+# test
