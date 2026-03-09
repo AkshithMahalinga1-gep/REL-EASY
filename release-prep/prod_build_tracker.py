@@ -61,6 +61,20 @@ CONFIG = {
 }
 # ─────────────────────────────────────────────
 
+# ── Load shared credentials from config.json at the project root ────────────
+_CONFIG_FILE = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config.json")
+)
+try:
+    with open(_CONFIG_FILE, encoding="utf-8") as _f:
+        _shared = json.load(_f)
+    CONFIG["org"]     = _shared.get("org",     CONFIG["org"])
+    CONFIG["project"] = _shared.get("project", CONFIG["project"])
+    CONFIG["pat"]     = _shared.get("pat",      CONFIG["pat"])
+except FileNotFoundError:
+    pass  # Falls back to the values set in CONFIG above
+# ────────────────────────────────────────────────────────────────────────────
+
 BASE_URL = f"https://dev.azure.com/{CONFIG['org']}/{CONFIG['project']}/_apis"
 AUTH = ("", CONFIG["pat"])
 HEADERS = {"Content-Type": "application/json"}
