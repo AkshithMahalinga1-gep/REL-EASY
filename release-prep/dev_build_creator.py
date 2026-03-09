@@ -14,15 +14,18 @@ CONFIGURE: Fill in the CONFIG section below, then run:
 """
 
 import concurrent.futures
-import os
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 import json
+import os
+import sys
 from datetime import datetime, timezone
+
+import requests
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import common
 
 # Reports are written to <project-root>/reports/qc/ regardless of where the script is run from.
 _REPORTS_DIR = os.path.normpath(
@@ -40,7 +43,7 @@ CONFIG = {
     "dev_branch": "DEVELOPMENT",
     # Leave pipeline_names as [] to auto-discover all pipelines in the project.
     # Or list specific names to trigger only those pipelines.
-    "pipeline_names": [],
+    "pipeline_names": ["leo.tprm.forms.workflow.api_k8s_IND", "leo.tprm.forms.api_k8s_IND"],
     # Pipelines whose name contains any of these substrings (case-insensitive) are skipped.
     "exclude_pipeline_name_patterns": ["-CI", "plugin", "automation", "NotInUse", "Not_in_use", "Cypress"],
     # Directory where Excel and JSON reports are saved. Created automatically if it doesn't exist.
@@ -48,46 +51,9 @@ CONFIG = {
 }
 # ─────────────────────────────────────────────
 
-# ── Load shared credentials from config.json at the project root ────────────
-_CONFIG_FILE = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config.json")
-)
-try:
-    with open(_CONFIG_FILE, encoding="utf-8") as _f:
-        _shared = json.load(_f)
-    CONFIG["org"]     = _shared.get("org",     CONFIG["org"])
-    CONFIG["project"] = _shared.get("project", CONFIG["project"])
-    CONFIG["pat"]     = _shared.get("pat",      CONFIG["pat"])
-except FileNotFoundError:
-    pass  # Falls back to the values set in CONFIG above
-# ────────────────────────────────────────────────────────────────────────────
-
-BASE_URL = f"https://dev.azure.com/{CONFIG['org']}/{CONFIG['project']}/_apis"
-AUTH = ("", CONFIG["pat"])
-HEADERS = {"Content-Type": "application/json"}
-
-_session = requests.Session()
-_session.auth = AUTH
-_session.headers.update(HEADERS)
-_retry = Retry(total=3, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504])
-_adapter = HTTPAdapter(pool_connections=20, pool_maxsize=20, max_retries=_retry)
-_session.mount("https://", _adapter)
-
-
-def get(url, params=None):
-    params = params or {}
-    params["api-version"] = "7.1"
-    r = _session.get(url, params=params, timeout=(10, 30))
-    r.raise_for_status()
-    return r.json()
-
-
-def post(url, body, params=None):
-    params = params or {}
-    params["api-version"] = "7.1"
-    r = _session.post(url, json=body, params=params, timeout=(10, 30))
-    r.raise_for_status()
-    return r.json()
+common.load_credentials(__file__, CONFIG)
+_session, BASE_URL = common.build_session(CONFIG)
+get, post, patch = common.make_http_fns(_session)
 
 
 def get_all_pipelines():
@@ -168,34 +134,8 @@ def trigger_dev_build(pipeline_id, pipeline_name):
 def build_excel_report(results):
     wb = Workbook()
 
-    # ── Styles ──────────────────────────────────────────────────────────────
-    BLUE_DARK  = "1F3864"
-    BLUE_MID   = "2E75B6"
-    BLUE_LIGHT = "D6E4F0"
-    GREEN_BG   = "E2EFDA"
-    AMBER_BG   = "FFF2CC"
-    RED_BG     = "FFDDD8"
-    WHITE      = "FFFFFF"
-    GREY_ROW   = "F5F7FA"
-
-    def header_font(size=11, bold=True, color=WHITE):
-        return Font(name="Arial", size=size, bold=bold, color=color)
-
-    def cell_font(size=10, bold=False, color="000000"):
-        return Font(name="Arial", size=size, bold=bold, color=color)
-
-    def fill(hex_color):
-        return PatternFill("solid", start_color=hex_color, fgColor=hex_color)
-
-    def thin_border():
-        s = Side(style="thin", color="CCCCCC")
-        return Border(left=s, right=s, top=s, bottom=s)
-
-    def center():
-        return Alignment(horizontal="center", vertical="center", wrap_text=True)
-
-    def left():
-        return Alignment(horizontal="left", vertical="center", wrap_text=True)
+    from common import (BLUE_DARK, BLUE_MID, BLUE_LIGHT, GREEN_BG, AMBER_BG, RED_BG,
+                        WHITE, GREY_ROW, header_font, cell_font, fill, thin_border, center, left)
 
     # ── Sheet 1: Summary Dashboard ────────────────────────────────────────
     ws = wb.active
