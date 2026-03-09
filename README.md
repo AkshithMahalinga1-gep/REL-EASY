@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="assets/REL-EASY.png" width="300" />
-</p>
-
 # REL-EASY — Making API Releases Easy
 
 Automate Azure DevOps build triggering, approval gating, and deferral across DEV (QC), UAT, and PROD — turning a multi-hour manual release process into a handful of Python commands.
